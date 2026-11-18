@@ -52,6 +52,17 @@
   ],
   "size_bytes": 925791
  },
+ "judge_max": {
+  "at": "2026-11-18 ~21:48-22:05 WIB, ordered by Lyso ('maksimalkan sesuai nilai juri saja kalo bisa 100%')",
+  "gap_list": "JUDGE-GAP-LIST.md (audit vs the sealed judge criteria in RULES.txt; the X post Lyso sent could not be read — x.com blocked by the sandbox domain policy, search does not index that tweet; nothing fabricated from it)",
+  "vehicles.js": "NEW module: buildCarMesh(color, police, style) — sedan / hatch / pickup styles (hood + trunk steps, glasshouse with sloped windshield + rear glass + pillars, bumpers, grille, mirrors, side skirts, wheel wells + hubcaps, exhaust, plates; Bay PD livery = white + blue stripe + light bar). traffic.js + police.js import it. Footprint / wheels / userData unchanged, so driving/collisions/wheel spin are untouched.",
+  "traffic.js": "local car builder deleted; imports buildCarMesh from vehicles.js; CAR_STYLES = ['sedan','sedan','hatch','pickup'] wired into both call sites (AI + parked).",
+  "characters.js": "pistol spec flag: small dark pistol (grip + slide, barrel along the fingers) in the hero's right hand, createPlayer only. Face small pass: eyelid raised + thinned (y 0.023->0.025, half-height 0.008->0.007), iris/pupil y 0.006->0.008 (less down-gaze), lower lip fuller, one extra fringe piece to break the straight hairline.",
+  "city.js": "4 foreground crates + 2 barrel clusters near the mission-5 docks area (x +/-16-20, z 116-120 and z 126/132; off the approach lines; crates have colliders, barrels do not).",
+  "shots.js": "2-play: closer camera (8 m behind, relative to the car's ACTUAL position after advance — the car drifts ~16 m at 97 km/h; fixed coords stranded the camera 24 m back) + 2 AI cars staged (same lane ahead + oncoming). 3-chase: second police unit in the left lane + closer camera (8.5 m behind, relative to actual car pos — ~34 m drift at 62 km/h). 4-mission: Vipers grouped into a loose arc 9-15 m ahead, aim pose (right arm forward), closer camera (5.5 m back, behind-right, pistol side), one staged combat.shoot() (muzzle flash + tracer; 34 dmg cannot kill a 90 HP Viper, gang stays at 4; HUD ammo 11/48).",
+  "capture": "capture720.mjs re-created at the repo root (durable — the /tmp copy was wiped by a VM restart). CDP driver, forces 1280x720 via Emulation.setDeviceMetricsOverride. All 5 shots re-captured 2026-11-18 ~22:05 WIB: 1-start 128520 B, 2-play 109944 B, 3-chase 126897 B, 4-mission 92971 B, 5-face 52685 B — all 1280x720 RGB (PIL), all JPGs under the 262144 B cap, zero page errors. 4-mission state: vipersAlive=4, ammo=11/48 (staged shot fired). 2-play/3-chase viewed: hero car LARGE in frame (black pickup, taillights + plate + bed read), 2 AI cars in 2-play, 2 police cars + 3 stars + responding-units panel in 3-chase. 4-mission viewed: hero large from behind, pistol + muzzle flash + tracer visible, 4 Vipers in arc, beacon + branded containers. 5-face viewed: eyes more open, brows thinner, fringe step breaks the straight hairline; still stylized low-poly (review-only shot).",
+  "honest_note": "100% as a number is NOT achievable — the judge is pairwise, so the score depends on the other entries too. The goal was to win as many pairwise games as possible."
+ },
  "kit_check": {
   "command": "node cli/makefun.mjs check --repo /home/hatch/workspace/makefun/solara-bay-v2 --commit 7e9c963 (from gta6-01-kit/gta6-01-kit)",
   "failed": [],
@@ -68,8 +79,7 @@
  },
  "local_head": "7e9c9639ec9478afe96b41e612d62f7c8556fb45",
  "next": [
-  "Lyso reviews the 5 polished screenshots (PNG set in review-png/ displays correctly on his phone; JPGs render green there), then submit to make.fun before Tue 24 Nov 2026 22:00 WIB (transcripts are site-built from sealed recordings; no upload needed).",
-  "Optional: fuller E2E chain re-run when the VM is quiet (split per mission); cars are still plain boxes (no wheels/detail) and 4-mission is still the weakest shot (vast yard, small dark figures)."
+  "Lyso's conditional submit order (2026-11-18 ~22:04 WIB): 'kalau gta6 simulasi score bagus submite y' — if the simulation is good, SUBMIT. 'Good' = bounded E2E 10/10 AND kit check 4 passed / 0 failed on the final pushed commit. Then submit gta6-01 with the eni keypair; record the submission ID + verify via the API owner view. Do NOT submit the old commit 8b3eb1dd — only the final judge-max version. Deadline Tue 24 Nov 2026 22:00 WIB; last submission before the deadline is final."
  ],
  "polish": {
   "at": "2026-11-18 ~14:00-14:20 WIB, ordered by Lyso ('poles bikin HD dan jernih, effek juga')",
@@ -119,18 +129,18 @@
   "all_under_limit": true,
   "files": [
    {
-    "bytes": 111351,
+    "bytes": 128520,
     "name": "screenshots/1-start.jpg",
     "shot": "?shot=start&seed=1"
    },
    {
-    "bytes": 90029,
+    "bytes": 109944,
     "name": "screenshots/2-play.jpg",
     "shot": "?shot=play&seed=1",
     "speedo": "97 km/h"
    },
    {
-    "bytes": 91720,
+    "bytes": 126897,
     "name": "screenshots/3-chase.jpg",
     "pd_units": 4,
     "shot": "?shot=chase&seed=1",
@@ -138,21 +148,21 @@
     "wanted": 3
    },
    {
-    "bytes": 77771,
+    "bytes": 92971,
     "name": "screenshots/4-mission.jpg",
     "shot": "?shot=mission&seed=1"
    },
    {
-    "bytes": 45418,
+    "bytes": 52685,
     "in_dossier": false,
-    "name": "review/closeup-face.jpg",
+    "name": "review/5-face.jpg",
     "shot": "?shot=face&seed=1"
    }
   ],
   "limit_bytes": 262144,
   "page_errors": 0,
-  "png_mirrors": "review-png/ (1-start, 2-play, 3-chase, 4-mission, closeup-face \u2014 all 1280x720, for Lyso's phone viewer which renders the JPGs green)",
-  "size": "1280x720 (verified with PIL on all 10 files, 2026-11-18 ~14:20 WIB)"
+  "png_mirrors": "review-png/ (1-start, 2-play, 3-chase, 4-mission, 5-face \u2014 all 1280x720, for Lyso's phone viewer which renders the JPGs green)",
+  "size": "1280x720 (verified with PIL on all 10 files, 2026-11-18 ~22:05 WIB; judge-max re-capture)"
  },
  "submitted_to_makefun": false,
  "tree_verified": "remote tree identical file list (44 blobs); 1-start.jpg + closeup-face.jpg sha256 verified identical local vs GitHub raw"

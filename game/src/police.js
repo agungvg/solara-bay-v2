@@ -5,7 +5,7 @@
 // wasted = health 0 (handled by the player module).
 
 import * as THREE from 'three';
-import { buildCarMesh } from './traffic.js';
+import { buildCarMesh } from './vehicles.js';
 import { WANTED } from './config.js';
 import { angleLerp, clamp, dist2, mulberry32 } from './utils.js';
 

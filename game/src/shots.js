@@ -35,6 +35,27 @@ export function stageShot(name, game) {
     hud.hideBrief();
     hud.setTask('Free roam — explore Solara Bay');
     hud.note('Downtown — Bay Avenue');
+    // Visible traffic: one AI car ahead in the same lane, one oncoming,
+    // so the road reads as traffic, not an empty street. Placed relative
+    // to the car's ACTUAL position: advance(0.6) at 97 km/h moves it ~16 m
+    // north of its spawn, so fixed coordinates would strand them behind.
+    const ai = g.traffic.cars.filter((c) => c.kind === 'ai');
+    if (ai.length >= 2) {
+      const a1 = ai[0];
+      a1.pos.set(car.pos.x - 2.4, 0, car.pos.z - 26);
+      a1.yaw = Math.PI;
+      a1.mesh.rotation.y = Math.PI;
+      const a2 = ai[1];
+      a2.pos.set(car.pos.x + 2.4, 0, car.pos.z - 14);
+      a2.yaw = 0;
+      a2.mesh.rotation.y = 0;
+    }
+    // Closer camera (8 m behind the car instead of the 10.5 m chase cam):
+    // the hero car fills the frame, road + traffic ahead. Also relative
+    // to the car's actual position (same ~16 m drift as above).
+    g.camera.position.set(car.pos.x, 2.9, car.pos.z + 8);
+    g.camera.lookAt(car.pos.x, 1.2, car.pos.z - 8);
+    g.camera.updateMatrixWorld(true);
     return;
   }
 
@@ -57,7 +78,26 @@ export function stageShot(name, game) {
       u.speed = 12;
       u.status = 'pursue';
     }
+    // Second unit in the left lane, 12 m ahead — two police cars in
+    // frame, so the pursuit reads as a response, not a single car.
+    if (units.length > 1) {
+      const u2 = units[1];
+      u2.pos.set(47.5, 0, car.pos.z - 12);
+      u2.yaw = Math.PI; // same direction as the player, pursuing
+      u2.mesh.position.copy(u2.pos);
+      u2.mesh.rotation.y = Math.PI;
+      u2.speed = 12;
+      u2.status = 'pursue';
+    }
     hud.hideBrief();
+    // Closer camera (8.5 m behind instead of 10.5 m): the hero car is
+    // large in the frame and the police car ahead is still in shot.
+    // Relative to the car's ACTUAL position: advance(2.0) at 62 km/h moves
+    // it ~34 m north of its spawn, so fixed coordinates would strand the
+    // camera ~42 m behind the car.
+    g.camera.position.set(car.pos.x, 2.9, car.pos.z + 8.5);
+    g.camera.lookAt(car.pos.x, 1.2, car.pos.z - 14);
+    g.camera.updateMatrixWorld(true);
     return;
   }
 
@@ -68,7 +108,34 @@ export function stageShot(name, game) {
     player.state.yaw = 0; // face +Z toward the Vipers
     player.state.camYaw = 0;
     g.advance(1.2);
+    // Group the Vipers into a loose arc 9-15 m ahead so they read as a
+    // gang, not four specks across an empty yard. (The old staging left
+    // the yard empty and the figures small and dark.)
+    const arc = [[-5, 121], [5, 123], [0, 127], [10, 120]];
+    g.missions.vipers.forEach((v, i) => {
+      const [x, z] = arc[i % arc.length];
+      v.pos.set(x, 0, z);
+      v.yaw = Math.atan2(player.pos.x - x, player.pos.z - z);
+      v.human.rotation.y = v.yaw;
+    });
+    // Aim pose: right arm forward, pistol toward the Vipers. Set AFTER
+    // the last advance() so updateHuman() cannot reset it.
+    const parts = player.group.userData.parts;
+    if (parts && parts.armR) {
+      parts.armR.rotation.x = -1.35;
+      parts.armR.userData.elbow.rotation.x = -0.15;
+    }
     hud.hideBrief();
+    // Closer camera, behind-right of the hero (pistol side), Vipers +
+    // beacon ahead. 5.5 m back instead of the default 6.8 m on-foot cam.
+    g.camera.position.set(2.2, 2.6, 106.5);
+    g.camera.lookAt(0, 1.3, 121);
+    g.camera.updateMatrixWorld(true);
+    // One staged shot: the muzzle flash + tracer prove the combat is
+    // real. Shot damage (34) cannot kill a Viper (90 HP), so the gang
+    // stays at 4. HUD ammo updates to 11 / 48 via shoot() -> setAmmo().
+    g.combat.shoot();
+    hud.update(0.11);
     return;
   }
 

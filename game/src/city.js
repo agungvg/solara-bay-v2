@@ -1572,6 +1572,10 @@ export function buildCity(scene, seed = 20261118, maxAnisotropy = 4) {
   const crateSpots = [];
   for (let k = 0; k < 4; k++) crateSpots.push([-24 + k * 3, 192 + (k % 2) * 3, 2.6 + rng() * 1.2]);
   for (let k = 0; k < 4; k++) crateSpots.push([16 + k * 3, 192 + (k % 2) * 3, 2.6 + rng() * 1.2]);
+  // Foreground crates for the mission-5 docks fight (x +/-16-20, z 116-120):
+  // off the player/Viper approach lines, so they fill the frame without
+  // blocking anyone. (The yard in front of the containers read as empty.)
+  crateSpots.push([-16, 116, 2.8], [-13, 118, 2.2], [18, 118, 2.8], [20, 120, 2.0]);
   const crateInst = new THREE.InstancedMesh(unitBox, crateMat, crateSpots.length);
   crateSpots.forEach(([x, z, s], i) => {
     placer.rotation.set(0, rng() * 0.4, 0);
@@ -1586,7 +1590,7 @@ export function buildCity(scene, seed = 20261118, maxAnisotropy = 4) {
   city.add(crateInst);
   const barrelTints = [new THREE.Color(0x8A3A2A), new THREE.Color(0x2A4A7A), new THREE.Color(0xC8A020)];
   const barrelSpots = [];
-  for (const [bx, bz] of [[-30, 168], [30, 168]]) {
+  for (const [bx, bz] of [[-30, 168], [30, 168], [-12, 126], [14, 132]]) {
     for (let k = 0; k < 4; k++) {
       barrelSpots.push([bx + (k % 2) * 1.1 - 0.5, bz + Math.floor(k / 2) * 1.1 - 0.5]);
     }

@@ -156,6 +156,8 @@ const GEO = {
   hairBack: new THREE.SphereGeometry(1, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62),
   // Thin torus for collars, belts, trim rings.
   ring: new THREE.TorusGeometry(1, 0.09, 8, 20),
+  // Unit box (pistol grip / slide, small props).
+  box: new THREE.BoxGeometry(1, 1, 1),
   // Small cone for the nose.
   nose: new THREE.ConeGeometry(1, 1, 8),
   // Thin cylinder for fingers, hair locks, piping.
@@ -275,15 +277,15 @@ function buildHead(spec, skin, hairMat, rng) {
   for (const side of [-1, 1]) {
     const sclera = mesh(GEO.sphere, eyeWhiteMat, side * EYE_X, 0.008, 0.080);
     sclera.scale.set(0.019, 0.023, 0.010);
-    const iris = mesh(GEO.sphere, irisMat, side * EYE_X, 0.006, 0.088);
+    const iris = mesh(GEO.sphere, irisMat, side * EYE_X, 0.008, 0.088);
     iris.scale.set(0.010, 0.012, 0.005);
-    const pupil = mesh(GEO.sphere, pupilMat, side * EYE_X, 0.006, 0.0915);
+    const pupil = mesh(GEO.sphere, pupilMat, side * EYE_X, 0.008, 0.0915);
     pupil.scale.set(0.005, 0.006, 0.003);
     // Upper eyelid: a flattened skin cap covering just the TOP edge of
-    // the iris. (Was y 0.020 / half-height 0.010 — it covered half the
-    // iris and the eyes read as sleepy / half-closed in the close-up.)
-    const lid = mesh(GEO.sphere, skin, side * EYE_X, 0.023, 0.086);
-    lid.scale.set(0.021, 0.008, 0.010);
+    // the iris. Raised + thinned again (was y 0.023 / 0.008) so more iris
+    // shows and the eyes stop reading as sleepy / downcast.
+    const lid = mesh(GEO.sphere, skin, side * EYE_X, 0.025, 0.086);
+    lid.scale.set(0.021, 0.007, 0.010);
     // Brow: thin, soft arch — flattened ellipsoid lying ON the brow
     // bone, inner end a touch higher than the outer end. Thinner and
     // lighter than the old bar (was 0.030 x 0.005 in near-black hair).
@@ -314,11 +316,12 @@ function buildHead(spec, skin, hairMat, rng) {
   }
 
   // Lips: a thin curved upper lip (flattened ellipsoid) + a smaller,
-  // lighter lower lip tucked below it. Not a red line.
+  // lighter lower lip tucked below it. Not a red line. The lower lip is
+  // a touch fuller now so the mouth is not just a thin line.
   const upperLip = mesh(GEO.sphere, lipMat, 0, -0.088, 0.082);
-  upperLip.scale.set(0.032, 0.007, 0.010);
+  upperLip.scale.set(0.034, 0.007, 0.010);
   const lowerLip = mesh(GEO.sphere, lipLightMat, 0, -0.100, 0.080);
-  lowerLip.scale.set(0.026, 0.006, 0.009);
+  lowerLip.scale.set(0.028, 0.008, 0.010);
   face.add(upperLip, lowerLip);
 
   // Store the measured eye ratio on the face group for the report/tests.
@@ -355,6 +358,13 @@ function buildHair(head, spec, hairMat, rng) {
   fringe.rotation.x = -0.38; // top edge leans back onto the skull
   fringe.rotation.z = -0.06; // slight asymmetric sweep
   head.add(fringe);
+  // Centre-part step: a second, smaller fringe piece offset to one side
+  // and a touch lower, so the hairline is not one straight edge.
+  const fringeStep = mesh(GEO.sphere, hairMat, 0.035, 0.089, 0.080);
+  fringeStep.scale.set(0.030, 0.014, 0.018);
+  fringeStep.rotation.x = -0.38;
+  fringeStep.rotation.z = 0.10;
+  head.add(fringeStep);
   for (const side of [-1, 1]) {
     const sweep = mesh(GEO.sphere, hairMat, side * 0.065, 0.086, 0.045);
     sweep.scale.set(0.020, 0.014, 0.012);
@@ -638,6 +648,23 @@ export function makeHuman(spec = {}) {
   const legR = buildLeg(bottomMat, shoeMat, soleMat, false, skirt);
   g.add(legL, legR);
 
+  // Pistol (hero only, spec.pistol): a small dark pistol in the RIGHT
+  // hand, barrel along the fingers (-Y) so it points down at rest and
+  // forward when the arm aims. Combat is otherwise invisible — no weapon
+  // mesh existed at all. Stored as parts.pistol for staging / tests.
+  let pistol = null;
+  if (spec.pistol) {
+    pistol = new THREE.Group();
+    const gunMat = stdMat(0x1a1a1e, 0.35, 0.7);
+    const grip = mesh(GEO.box, gunMat, 0, -0.03, 0.005);
+    grip.scale.set(0.035, 0.07, 0.03);
+    const slide = mesh(GEO.box, gunMat, 0, -0.10, 0.008);
+    slide.scale.set(0.028, 0.14, 0.028);
+    pistol.add(grip, slide);
+    pistol.position.set(0, -0.01, 0.005);
+    armR.userData.hand.add(pistol);
+  }
+
   // ---- ARCHETYPE ACCESSORIES (one signature prop each, silhouette step) ----
   if (archetype === 'worker') {
     // Hi-vis vest: a slightly larger, shorter lathe over the jacket.
@@ -673,6 +700,7 @@ export function makeHuman(spec = {}) {
       torso, head,
       armL, armR, legL, legR,
       handL: armL.userData.hand, handR: armR.userData.hand,
+      pistol,
     },
     archetype,
     seed,
@@ -722,6 +750,7 @@ export function createPlayer() {
     female: false,
     seed: 417,
     jacket: true,
+    pistol: true,
   });
 }
 
