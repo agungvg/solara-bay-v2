@@ -103,7 +103,7 @@ const GEO = {
       new THREE.Vector2(0.001, 0.0),
       new THREE.Vector2(waistR * 1.06, 0.0),
       new THREE.Vector2(waistR, 0.10),
-      new THREE.Vector2(waistR * 0.94, 0.16),
+      new THREE.Vector2(waistR * 0.90, 0.16),
       new THREE.Vector2(chestR * 0.92, 0.26),
       new THREE.Vector2(chestR, 0.33),
       new THREE.Vector2(shoulderR, 0.41),
@@ -141,8 +141,8 @@ const GEO = {
     const pts = [
       new THREE.Vector2(0.001, -0.02),
       new THREE.Vector2(waistR * 1.14, -0.02),
-      new THREE.Vector2(waistR * 1.08, 0.10),
-      new THREE.Vector2(waistR * 1.02, 0.16),
+      new THREE.Vector2(waistR * 1.02, 0.10),
+      new THREE.Vector2(waistR * 0.96, 0.16),
       new THREE.Vector2(chestR, 0.26),
       new THREE.Vector2(chestR * 1.06, 0.33),
       new THREE.Vector2(shoulderR * 1.06, 0.41),
@@ -260,6 +260,10 @@ function buildHead(spec, skin, hairMat, rng) {
   const irisMat = stdMat(pick(rng, IRIS_COLORS), 0.3, 0);
   const lipMat = stdMat(0x8a4a42, 0.6, 0);
   const lipLightMat = stdMat(0xa8625a, 0.6, 0);
+  // Brow: LIGHTER than the hair (dark hair + near-black brow = a black
+  // bar). Lift the hair colour one step and thin the ellipsoid down so
+  // the brow reads as a soft arch, not a painted bar.
+  const browMat = stdMat(ramp(hairMat.color.getHex(), 0.12), 0.8, 0);
 
   // Eye geometry, all shared: sclera r 0.019, iris r 0.010, pupil r 0.005.
   // Centres at x = +/-0.038, so the gap between the eyes (0.038) equals
@@ -275,31 +279,39 @@ function buildHead(spec, skin, hairMat, rng) {
     iris.scale.set(0.010, 0.012, 0.005);
     const pupil = mesh(GEO.sphere, pupilMat, side * EYE_X, 0.006, 0.0915);
     pupil.scale.set(0.005, 0.006, 0.003);
-    // Upper eyelid: a flattened skin cap covering the TOP of the iris.
-    // This is what stops the eye reading as a googly ball — the iris is
-    // half-lidded, as in a real face at rest.
-    const lid = mesh(GEO.sphere, skin, side * EYE_X, 0.020, 0.086);
-    lid.scale.set(0.021, 0.010, 0.010);
-    // Brow: tapered — a flattened ellipsoid, thicker at the inner end,
-    // one brow a touch higher (asymmetry = life, 1-3% rule).
-    const brow = mesh(GEO.sphere, hairMat, side * (EYE_X + 0.002), 0.048 + (side < 0 ? 0.003 : 0), 0.088);
-    brow.scale.set(0.030, 0.005, 0.008);
-    brow.rotation.z = side < 0 ? -0.10 : 0.05;
+    // Upper eyelid: a flattened skin cap covering just the TOP edge of
+    // the iris. (Was y 0.020 / half-height 0.010 — it covered half the
+    // iris and the eyes read as sleepy / half-closed in the close-up.)
+    const lid = mesh(GEO.sphere, skin, side * EYE_X, 0.023, 0.086);
+    lid.scale.set(0.021, 0.008, 0.010);
+    // Brow: thin, soft arch — flattened ellipsoid lying ON the brow
+    // bone, inner end a touch higher than the outer end. Thinner and
+    // lighter than the old bar (was 0.030 x 0.005 in near-black hair).
+    const brow = mesh(GEO.sphere, browMat, side * (EYE_X + 0.002), 0.050 + (side < 0 ? 0.002 : 0), 0.084);
+    brow.scale.set(0.026, 0.0032, 0.005);
+    brow.rotation.z = side < 0 ? -0.16 : 0.10;
+    brow.rotation.x = -0.15; // lie flat against the forehead curve
     // Ear: flattened ellipsoid at the side, spanning brow-to-nose height.
     const ear = mesh(GEO.sphere, skin, side * 0.093, -0.018, 0.0);
     ear.scale.set(0.012, 0.030, 0.020);
     face.add(sclera, iris, pupil, lid, brow, ear);
   }
 
-  // Nose: a small bridge (flattened ellipsoid down the face) + a cone
-  // tip pointing forward-down. In side view: brow step, nose point,
-  // lip step, chin — the profile is not a flat plate.
-  const bridge = mesh(GEO.sphere, skin, 0, -0.022, 0.092);
-  bridge.scale.set(0.014, 0.032, 0.012);
-  const noseTip = mesh(GEO.nose, skin, 0, -0.048, 0.098);
-  noseTip.scale.set(0.013, 0.030, 0.013);
-  noseTip.rotation.x = Math.PI / 2 + 0.35; // tip points forward and down
+  // Nose: a small bridge (flattened ellipsoid down the face) + a soft
+  // ROUNDED tip (flattened sphere), not a cone — the old cone tip read
+  // as a spike in the close-up. Two tiny shadow dots under the tip
+  // suggest nostrils without adding a point.
+  const bridge = mesh(GEO.sphere, skin, 0, -0.020, 0.090);
+  bridge.scale.set(0.011, 0.028, 0.010);
+  const noseTip = mesh(GEO.sphere, skin, 0, -0.048, 0.094);
+  noseTip.scale.set(0.011, 0.013, 0.009);
   face.add(bridge, noseTip);
+  const nostrilMat = stdMat(ramp(skin.color.getHex(), -0.14), 0.7, 0);
+  for (const side of [-1, 1]) {
+    const nostril = mesh(GEO.sphere, nostrilMat, side * 0.007, -0.058, 0.092);
+    nostril.scale.set(0.0035, 0.0028, 0.003);
+    face.add(nostril);
+  }
 
   // Lips: a thin curved upper lip (flattened ellipsoid) + a smaller,
   // lighter lower lip tucked below it. Not a red line.
@@ -333,23 +345,28 @@ function buildHair(head, spec, hairMat, rng) {
   back.rotation.x = -0.25;
   head.add(back);
 
-  // Fringe: two tapered locks across the forehead, framing the face.
-  const fringeX = [-0.045, 0.045];
-  fringeX.forEach((x, i) => {
-    const lock = mesh(GEO.rod, hairMat, x, 0.098 - i * 0.002, 0.082);
-    lock.scale.set(0.016, 0.055, 0.012);
-    lock.rotation.x = 0.35;
-    lock.rotation.z = (x / 0.055) * -0.18;
-    head.add(lock);
-  });
-
-  // Side locks beside the cheeks, down to the jaw line.
+  // Fringe: ONE swept band lying FLAT on the forehead, following the
+  // cranium curve — never vertical rods. The old two upright rods stuck
+  // 0.025 above the crown and read as horns in the close-up. The band's
+  // top edge stays below the crown (y <= ~0.10) and its face is pressed
+  // to the forehead, with two small flat side sweeps at the temples.
+  const fringe = mesh(GEO.sphere, hairMat, 0.004, 0.094, 0.078);
+  fringe.scale.set(0.082, 0.020, 0.020);
+  fringe.rotation.x = -0.38; // top edge leans back onto the skull
+  fringe.rotation.z = -0.06; // slight asymmetric sweep
+  head.add(fringe);
   for (const side of [-1, 1]) {
-    const lock = mesh(GEO.rod, hairMat, side * 0.096, -0.02, 0.03);
-    lock.scale.set(0.014, 0.075, 0.014);
-    lock.rotation.z = side * 0.08;
-    head.add(lock);
+    const sweep = mesh(GEO.sphere, hairMat, side * 0.065, 0.086, 0.045);
+    sweep.scale.set(0.020, 0.014, 0.012);
+    sweep.rotation.z = side * -0.35;
+    sweep.rotation.x = -0.30;
+    head.add(sweep);
   }
+
+  // No hanging side locks: for a short style the back shell already
+  // covers the sides of the head, and flat locks beside the cheeks read
+  // as black bars / earmuffs in the close-up. Long / ponytail styles
+  // get their side volume from the back panel / ponytail instead.
 
   if (style === 'ponytail') {
     // Ponytail: two tapered cylinders curving down the back + a rounded
@@ -396,13 +413,13 @@ function buildHair(head, spec, hairMat, rng) {
 function buildHand(skin, isLeft) {
   const hand = new THREE.Group();
   const palm = mesh(GEO.sphere, skin, 0, -0.02, 0);
-  palm.scale.set(0.038, 0.048, 0.016);
+  palm.scale.set(0.042, 0.052, 0.018);
   hand.add(palm);
   const fingerX = [-0.027, -0.009, 0.009, 0.027];
   const fingerLen = [0.042, 0.052, 0.048, 0.038];
   fingerX.forEach((x, i) => {
     const f = mesh(GEO.rod, skin, x, -0.085, 0.002);
-    f.scale.set(0.0075, fingerLen[i], 0.0075);
+    f.scale.set(0.0085, fingerLen[i], 0.0085);
     f.rotation.x = 0.18; // slight natural curl
     hand.add(f);
   });
@@ -422,7 +439,7 @@ function buildHand(skin, isLeft) {
 function buildArm(skin, topMat, isLeft, female) {
   const pivot = new THREE.Group();
   pivot.position.set((isLeft ? -1 : 1) * H.shoulderX, H.shoulderY - H.waistY, 0);
-  const rTop = female ? 0.044 : 0.050;
+  const rTop = female ? 0.050 : 0.058; // was 0.044 / 0.050 — arms read as sticks
   const upper = mesh(limbGeo('arm', rTop, rTop * 0.72, H.upperArmLen), topMat);
   pivot.add(upper);
   const elbow = new THREE.Group();
@@ -505,7 +522,7 @@ export function makeHuman(spec = {}) {
   // Pelvis: wider at the hips, narrowing to the waist. Female hips wider,
   // male shoulders wider — the ratio flips by sex, as in a real body.
   const hipR = female ? 0.165 : 0.150;
-  const waistR = female ? 0.128 : 0.140;
+  const waistR = female ? 0.116 : 0.126; // was 0.128 / 0.140 — front-view waist taper
   const shoulderR = female ? 0.168 : 0.190;
   const chestR = female ? 0.150 : 0.168;
   const hips = mesh(hipsGeo(hipR, waistR), bottomMat, 0, H.hipY, 0);
@@ -546,29 +563,41 @@ export function makeHuman(spec = {}) {
     jacketMesh = mesh(jacketGeo(shoulderR * 1.04, waistR * 1.06, chestR * 1.05), jacketMat);
     jacketMesh.scale.z = 0.66;
     torso.add(jacketMesh);
-    // Shirt V at the chest: a small light panel under the open jacket.
+    // Shirt V at the chest: a NARROW sliver under the open jacket, in
+    // the TRIM colour (red on Tomas) — a vertical break in the white
+    // slab. The old wide oval (0.075 x 0.13) read as a red medallion.
     // Only on the hero (trimmed jacket) — NPC jackets stay closed.
     if (spec.trimColor !== undefined) {
-      const shirtPanel = mesh(GEO.sphere, topLight, 0, 0.30, chestR * 0.62);
-      shirtPanel.scale.set(0.075, 0.13, 0.02);
+      const shirtPanel = mesh(GEO.sphere, stdMat(spec.trimColor, 0.8, 0), 0, 0.33, chestR * 0.62);
+      shirtPanel.scale.set(0.032, 0.085, 0.018);
       torso.add(shirtPanel);
+      // Centre seam: a thin red rod down the jacket front, tilted to
+      // follow the chest-to-waist slope, so the white is broken
+      // top-to-bottom instead of one big patch.
+      const seam = mesh(GEO.rod, stdMat(spec.trimColor, 0.8, 0), 0, 0.20, 0.098);
+      seam.scale.set(0.006, 0.11, 0.006);
+      seam.rotation.x = -0.12;
+      torso.add(seam);
     }
   }
 
-  // Collar: a torus segment standing up around the neck — a real collar,
-  // not a painted ring. Slightly tilted, open at the front.
-  const collar = mesh(GEO.ring, jacketDark, 0, 0.46, 0);
-  collar.scale.set(0.085, 0.085, 0.085);
-  collar.scale.z = 0.7;
-  collar.rotation.x = Math.PI / 2 - 0.25;
+  // Collar: a SLIM standing band (short cylinder) around the neck, in
+  // the trim colour when there is one. The old torus collar was a fat
+  // tube: GEO.ring scaled (0.085, 0.085, 0.7) — the 0.7 was an ABSOLUTE
+  // z-scale, 8x the x/y scale, so the tube read as a thick white pipe.
+  const collarMat = spec.trimColor !== undefined ? stdMat(spec.trimColor, 0.75, 0) : jacketDark;
+  const collar = mesh(new THREE.CylinderGeometry(0.062, 0.070, 0.038, 16), collarMat, 0, 0.445, 0);
+  collar.scale.z = 0.78;
   torso.add(collar);
 
-  // Trim / piping: a thin ring at the jacket hem (the red trim on Tomas).
+  // Trim / piping: a thin dark-red band at the jacket hem, PROUD of the
+  // jacket surface (jacket hem radius is waist*1.14, so the band must be
+  // wider than that to be seen at all — the old torus ring at 1.12 was
+  // buried inside the jacket). A short cylinder is unambiguous, unlike
+  // the old torus whose absolute z-scale made it a tall band.
   if (spec.trimColor !== undefined) {
-    const trim = mesh(GEO.ring, stdMat(spec.trimColor, 0.75, 0), 0, 0.02, 0);
-    trim.scale.set(waistR * 1.12, waistR * 1.12, waistR * 1.12);
-    trim.scale.z = 0.66;
-    trim.rotation.x = Math.PI / 2;
+    const trim = mesh(new THREE.CylinderGeometry(waistR * 1.17, waistR * 1.17, 0.014, 20), stdMat(spec.trimColor, 0.75, 0), 0, 0.055, 0);
+    trim.scale.z = 0.68;
     torso.add(trim);
   }
 
@@ -578,13 +607,14 @@ export function makeHuman(spec = {}) {
   pocket.rotation.z = 0.06;
   torso.add(pocket);
 
-  // Belt + buckle at the waist (the waist step in the silhouette).
-  const belt = mesh(GEO.ring, stdMat(0x2a2018, 0.8, 0), 0, 0.01, 0);
-  belt.scale.set(waistR * 1.12, waistR * 1.12, waistR * 1.12);
+  // Belt: a dark leather BAND (short cylinder) around the waist, proud
+  // of the jacket hem (jacket bottom radius waist*1.14) so the white is
+  // visibly broken at the waist — the old torus belt at 1.12 was buried
+  // inside the jacket and its absolute z-scale (0.68) made it a tall tube.
+  const belt = mesh(new THREE.CylinderGeometry(waistR * 1.18, waistR * 1.18, 0.032, 20), stdMat(0x2a2018, 0.8, 0), 0, 0.005, 0);
   belt.scale.z = 0.68;
-  belt.rotation.x = Math.PI / 2;
   torso.add(belt);
-  const buckle = mesh(GEO.sphere, buckleMat, 0, 0.01, waistR * 0.72);
+  const buckle = mesh(GEO.sphere, buckleMat, 0, 0.005, waistR * 1.18 * 0.68 + 0.006);
   buckle.scale.set(0.028, 0.020, 0.010);
   torso.add(buckle);
 

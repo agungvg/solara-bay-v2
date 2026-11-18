@@ -34,18 +34,23 @@ const seed = Number.isInteger(seedParam) ? seedParam : SEED;
 
 const stageEl = document.getElementById('stage');
 
-// --- Renderer: ACES filmic, exposure 1.15, HalfFloat MSAA composer --------
+// --- Renderer: ACES filmic, HalfFloat MSAA composer -----------------------
+// Clarity notes: the composer target is created at CSS size, so
+// composer.setPixelRatio() must run once here — without it a HiDPI display
+// renders the 3D scene at CSS resolution and upscales (soft image).
+// Bloom stays gentle: threshold 1.0 so only true HDR highlights (sun disc,
+// water glints) bloom, never the sky or the pale ground.
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.05;
 stageEl.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xffe9c4);
+scene.background = new THREE.Color(0xF2D6A0);
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1200);
 camera.position.set(0, 5, 36);
 
@@ -54,9 +59,10 @@ const composer = new EffectComposer(
   new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: 4 }),
 );
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.5, 0.85);
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.35, 1.0);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+composer.setPixelRatio(renderer.getPixelRatio());
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -66,7 +72,7 @@ window.addEventListener('resize', () => {
 });
 
 // --- World -----------------------------------------------------------------
-const city = buildCity(scene, seed);
+const city = buildCity(scene, seed, renderer.capabilities.getMaxAnisotropy());
 const rng = mulberry32(seed);
 const audio = createAudio();
 const input = createInput(renderer.domElement);

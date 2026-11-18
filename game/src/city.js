@@ -11,7 +11,7 @@
 //   axes; the middle block (-52..52) is the market square; towers stand
 //   centre-north; the harbour yard sits near z = 130; sand runs z 186..214
 //   and the sea starts at beachZ = 212.
-// API: buildCity(scene, seed = 20261118) returns
+// API: buildCity(scene, seed = 20261118, maxAnisotropy = 4) returns
 //   { update, colliders, roadGrid, spawnPlayer, plazaCenter, dockCenter,
 //     beachZ, carSpots, landmarks: { tower, fountain, beach } }
 // Colliders are axis-aligned boxes: { min: THREE.Vector3, max: THREE.Vector3 }.
@@ -53,13 +53,18 @@ function makeCanvas2D(w, h) {
 function toTexture(sheet, repeat) {
   const texture = new THREE.CanvasTexture(sheet);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = MAX_ANISO;
   if (repeat) {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
   }
   return texture;
 }
+
+// Highest anisotropy the GPU reports (main.js passes it in via buildCity);
+// ground textures at grazing angles stay sharp instead of smearing.
+// Default 4 until buildCity runs.
+let MAX_ANISO = 4;
 
 function dust(g, w, h, n, rng, alpha) {
   for (let i = 0; i < n; i++) {
@@ -302,6 +307,32 @@ function paintAshlar(rng) {
   return toTexture(cv, true);
 }
 
+// Channel water: deep teal with lighter flow streaks along the channel
+// and pale glints. The old concentric-ring texture stretched 15:1 across
+// the 60 m plane and read as flat painted bands. Own fixed sub-stream:
+// the shared seed stream is untouched, so the layout does not reshuffle.
+function paintChannelWater() {
+  const sub = sfc32(0xC4A11E1);
+  const [cv, g] = makeCanvas2D(256, 64);
+  g.fillStyle = '#0F5568'; g.fillRect(0, 0, 256, 64);
+  for (let k = 0; k < 46; k++) {
+    const y = sub() * 64, w = 20 + sub() * 70, h = 1 + sub() * 2.5;
+    g.fillStyle = sub() < 0.6 ? 'rgba(46,139,158,0.55)' : 'rgba(120,200,210,0.35)';
+    g.fillRect(sub() * 256, y, w, h);
+  }
+  for (let k = 0; k < 60; k++) {
+    g.fillStyle = 'rgba(255,255,255,' + (0.12 + sub() * 0.25) + ')';
+    g.fillRect(sub() * 256, sub() * 64, 1 + sub() * 3, 1);
+  }
+  // Darker edges: depth under the banks.
+  const grad = g.createLinearGradient(0, 0, 0, 64);
+  grad.addColorStop(0, 'rgba(6,42,52,0.55)');
+  grad.addColorStop(0.5, 'rgba(6,42,52,0)');
+  grad.addColorStop(1, 'rgba(6,42,52,0.55)');
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 64);
+  return toTexture(cv, true);
+}
+
 // Fountain water: dashed concentric rings on shallow teal.
 function paintRipples() {
   const [cv, g] = makeCanvas2D(256, 256);
@@ -320,17 +351,20 @@ function paintRipples() {
 }
 
 // Asphalt tile: 12 metres of road per tile, edge lines and a centre dash.
+// 256 px per tile (was 128): dash and edge lines stay crisp when the road
+// fills the frame.
 function paintAsphalt(rng) {
-  const [cv, g] = makeCanvas2D(128, 128);
-  g.fillStyle = '#33363C'; g.fillRect(0, 0, 128, 128);
-  dust(g, 128, 128, 200, rng, 0.08);
+  const S = 256;
+  const [cv, g] = makeCanvas2D(S, S);
+  g.fillStyle = '#33363C'; g.fillRect(0, 0, S, S);
+  dust(g, S, S, 200, rng, 0.08);
   g.fillStyle = 'rgba(232,232,226,0.55)';
-  g.fillRect(3, 0, 2, 128); g.fillRect(123, 0, 2, 128);
+  g.fillRect(6, 0, 4, S); g.fillRect(246, 0, 4, S);
   g.fillStyle = '#E8C832';
-  g.fillRect(61, 14, 6, 44);
+  g.fillRect(122, 28, 12, 88);
   g.fillStyle = 'rgba(0,0,0,0.25)';
   for (let k = 0; k < 5; k++) {
-    g.fillRect(rng() * 128, rng() * 128, 8 + rng() * 14, 3);
+    g.fillRect(rng() * S, rng() * S, 16 + rng() * 28, 6);
   }
   return toTexture(cv, true);
 }
@@ -350,21 +384,35 @@ function paintSand(rng) {
   return toTexture(cv, true);
 }
 
-// Yard concrete: joints, stains, tyre scuffs.
+// Yard concrete: joints, stains, tyre scuffs. 512 px tile (was 256),
+// darker base and harder joints/stains: the docks yard must read as
+// concrete slabs, not a flat beige plane.
 function paintConcrete(rng) {
-  const [cv, g] = makeCanvas2D(256, 256);
-  g.fillStyle = '#9A938A'; g.fillRect(0, 0, 256, 256);
-  dust(g, 256, 256, 500, rng, 0.07);
-  g.strokeStyle = 'rgba(0,0,0,0.18)';
-  g.lineWidth = 2;
-  for (let v = 0; v <= 256; v += 64) {
-    g.beginPath(); g.moveTo(v, 0); g.lineTo(v, 256); g.stroke();
-    g.beginPath(); g.moveTo(0, v); g.lineTo(256, v); g.stroke();
+  const S = 512;
+  const [cv, g] = makeCanvas2D(S, S);
+  g.fillStyle = '#857C71'; g.fillRect(0, 0, S, S);
+  dust(g, S, S, 500, rng, 0.07);
+  g.strokeStyle = 'rgba(0,0,0,0.40)';
+  g.lineWidth = 4;
+  for (let v = 0; v <= S; v += 128) {
+    g.beginPath(); g.moveTo(v, 0); g.lineTo(v, S); g.stroke();
+    g.beginPath(); g.moveTo(0, v); g.lineTo(S, v); g.stroke();
   }
+  // Faded yellow yard guide lines (they repeat with the tile).
+  g.fillStyle = 'rgba(232,200,50,0.20)';
+  g.fillRect(0, 128, S, 8);
+  g.fillRect(0, 384, S, 8);
   for (let k = 0; k < 8; k++) {
-    const x = rng() * 256, y = rng() * 256, r = 14 + rng() * 26;
+    const x = rng() * S, y = rng() * S, r = 28 + rng() * 52;
+    if (k < 3) {
+      // Dark oil spot, not a soft stain, so the yard is not one even tone.
+      g.fillStyle = 'rgba(20,16,12,0.45)';
+      g.beginPath(); g.arc(x, y, r * 0.5, 0, Math.PI * 2);
+      g.fill();
+      continue;
+    }
     const halo = g.createRadialGradient(x, y, 1, x, y, r);
-    halo.addColorStop(0, 'rgba(25,20,16,0.30)');
+    halo.addColorStop(0, 'rgba(25,20,16,0.38)');
     halo.addColorStop(1, 'rgba(25,20,16,0)');
     g.fillStyle = halo;
     g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
@@ -373,36 +421,59 @@ function paintConcrete(rng) {
   return toTexture(cv, true);
 }
 
+// Bare ground between roads and buildings: warm tan with soft blotches,
+// so the gaps are not one flat beige plane. Own fixed sub-stream: the
+// shared seed stream is untouched, so the city layout does not reshuffle.
+function paintGround() {
+  const sub = sfc32(0x6B30);
+  const S = 256;
+  const [cv, g] = makeCanvas2D(S, S);
+  g.fillStyle = '#B3A184'; g.fillRect(0, 0, S, S);
+  dust(g, S, S, 900, sub, 0.06);
+  for (let k = 0; k < 14; k++) {
+    const x = sub() * S, y = sub() * S, r = 30 + sub() * 50;
+    const halo = g.createRadialGradient(x, y, 1, x, y, r);
+    halo.addColorStop(0, 'rgba(90,70,45,0.14)');
+    halo.addColorStop(1, 'rgba(90,70,45,0)');
+    g.fillStyle = halo;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  }
+  return toTexture(cv, true);
+}
+
 // Plaza paving: stone tiles in varied shades, ring joints around the
-// fountain (canvas point 256,171 is the fountain at world (0,-10)) and a
-// dark channel bed stripe (canvas y 393..427 is the water channel z 16..20).
+// fountain (canvas point 512,342 is the fountain at world (0,-10)) and a
+// dark channel bed stripe (canvas y 786..854 is the water channel z 16..20).
+// 1024 px (was 512): the paving stays crisp under the start camera.
 function paintPlazaTiles(rng) {
-  const S = 512;
+  const S = 1024;
+  const T = S / 8;
   const [cv, g] = makeCanvas2D(S, S);
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
       const shade = 196 + Math.floor(rng() * 26);
       g.fillStyle = 'rgb(' + shade + ',' + (shade - 18) + ',' + (shade - 52) + ')';
-      g.fillRect(col * 64, row * 64, 64, 64);
+      g.fillRect(col * T, row * T, T, T);
     }
   }
-  g.strokeStyle = 'rgba(120,90,50,0.4)'; g.lineWidth = 2;
-  for (let v = 0; v <= S; v += 64) {
+  g.strokeStyle = 'rgba(120,90,50,0.4)'; g.lineWidth = 4;
+  for (let v = 0; v <= S; v += T) {
     g.beginPath(); g.moveTo(v, 0); g.lineTo(v, S); g.stroke();
     g.beginPath(); g.moveTo(0, v); g.lineTo(S, v); g.stroke();
   }
-  g.strokeStyle = 'rgba(120,90,50,0.5)'; g.lineWidth = 3;
-  for (const r of [46, 78, 110, 142]) {
-    g.beginPath(); g.arc(256, 171, r, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = 'rgba(120,90,50,0.5)'; g.lineWidth = 6;
+  for (const r of [92, 156, 220, 284]) {
+    g.beginPath(); g.arc(S / 2, S * 171 / 512, r, 0, Math.PI * 2); g.stroke();
   }
   for (let k = 0; k < 700; k++) {
     g.fillStyle = rng() < 0.5 ? 'rgba(90,70,40,0.14)' : 'rgba(255,240,200,0.14)';
-    g.fillRect(rng() * S, rng() * S, 2, 2);
+    g.fillRect(rng() * S, rng() * S, 4, 4);
   }
   g.fillStyle = '#1E4A52';
-  g.fillRect(0, 393, S, 34);
+  g.fillRect(0, S * 393 / 512, S, S * 34 / 512);
   g.fillStyle = '#2A5A62';
-  g.fillRect(0, 401, S, 18);
+  g.fillRect(0, S * 401 / 512, S, S * 18 / 512);
   return toTexture(cv, false);
 }
 
@@ -523,7 +594,8 @@ function widthOf(v) {
 // ---------------------------------------------------------------------------
 // buildCity
 // ---------------------------------------------------------------------------
-export function buildCity(scene, seed = 20261118) {
+export function buildCity(scene, seed = 20261118, maxAnisotropy = 4) {
+  MAX_ANISO = Math.max(4, Math.min(16, maxAnisotropy || 4));
   const rng = sfc32(seed);
   const colliders = [];
   const city = new THREE.Group();
@@ -541,23 +613,24 @@ export function buildCity(scene, seed = 20261118) {
 
   // -- Light and air: one warm key sun, cool hemisphere fill, fog the
   //    colour of the horizon. Bright on purpose — the street must read
-  //    sunlit, not dim.
+  //    sunlit, not dim — but the fog stays light (0.0007) and the fill
+  //    stays restrained, or distant geometry washes out to cream.
   const sunDir = new THREE.Vector3(0.52, 0.45, 0.72).normalize();
-  const sun = new THREE.DirectionalLight(0xFFE3B0, 2.8);
+  const sun = new THREE.DirectionalLight(0xFFE3B0, 2.6);
   sun.position.copy(sunDir).multiplyScalar(380);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -240;
-  sun.shadow.camera.right = 240;
-  sun.shadow.camera.top = 240;
-  sun.shadow.camera.bottom = -240;
+  sun.shadow.camera.left = -200;
+  sun.shadow.camera.right = 200;
+  sun.shadow.camera.top = 200;
+  sun.shadow.camera.bottom = -200;
   sun.shadow.camera.near = 10;
   sun.shadow.camera.far = 900;
   sun.shadow.bias = -0.0005;
   scene.add(sun);
   scene.add(sun.target);
-  scene.add(new THREE.HemisphereLight(0xCFE4FF, 0x9A7B52, 0.9));
-  scene.fog = new THREE.FogExp2(0xFFE0B0, 0.0015);
+  scene.add(new THREE.HemisphereLight(0xCFE4FF, 0x8A6F45, 0.75));
+  scene.fog = new THREE.FogExp2(0xEAD9B4, 0.0007);
 
   // -- Sky dome: four-band warm daylight gradient with a sun disc and a
   //    glow on the same bearing as the key light.
@@ -567,7 +640,7 @@ export function buildCity(scene, seed = 20261118) {
       uTop: { value: new THREE.Color(0x5E9BD6) },
       uHigh: { value: new THREE.Color(0x8FC3E8) },
       uMid: { value: new THREE.Color(0xFFD9A8) },
-      uLow: { value: new THREE.Color(0xFFE9C4) },
+      uLow: { value: new THREE.Color(0xF2D6A0) },
       uUnder: { value: new THREE.Color(0x6B7A86) },
     },
     side: THREE.BackSide,
@@ -596,7 +669,7 @@ export function buildCity(scene, seed = 20261118) {
       '  col = mix(col, uHigh, smoothstep(0.16, 0.45, h));',
       '  col = mix(col, uTop, smoothstep(0.45, 0.8, h));',
       '  float s = max(dot(d, uSun), 0.0);',
-      '  col += vec3(1.0, 0.85, 0.55) * pow(s, 24.0) * 0.5;',
+      '  col += vec3(1.0, 0.85, 0.55) * pow(s, 24.0) * 0.32;',
       '  col += vec3(1.0, 0.9, 0.65) * smoothstep(0.9993, 0.9997, s) * 2.5;',
       '  gl_FragColor = vec4(col, 1.0);',
       '  #include <tonemapping_fragment>',
@@ -741,9 +814,12 @@ export function buildCity(scene, seed = 20261118) {
     city.add(c);
   }
 
-  // -- Ground base: one warm pavement plane; roads, parks, the square,
+  // -- Ground base: one warm pavement plane with a subtle blotched
+  //    texture (not a flat beige slab); roads, parks, the square,
   //    the yard and the sand are separate planes laid on top of it.
-  const baseMat = new THREE.MeshStandardMaterial({ color: 0xC2B49A, roughness: 1 });
+  const groundTex = paintGround();
+  groundTex.repeat.set(12, 11);
+  const baseMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1 });
   const base = new THREE.Mesh(new THREE.PlaneGeometry(540, 480), baseMat);
   base.rotation.x = -Math.PI / 2;
   base.position.set(0, 0, -30);
@@ -820,16 +896,28 @@ export function buildCity(scene, seed = 20261118) {
   city.add(plaza);
 
   // -- Channel water across the square (the bridge crosses it at x = 0).
-  const rippleTex = paintRipples();
-  rippleTex.wrapS = THREE.RepeatWrapping;
-  rippleTex.wrapT = THREE.RepeatWrapping;
+  //    Stone curbs frame both banks so the water reads as a sunken
+  //    watercourse, not a painted stripe on the paving; the water sits
+  //    between them, deep teal with flow streaks and a sun glint.
+  const channelTex = paintChannelWater();
+  channelTex.repeat.set(6, 1);
   const channelMat = new THREE.MeshStandardMaterial({
-    map: rippleTex, color: 0x2EA6B6, transparent: true, opacity: 0.92, roughness: 0.2,
+    map: channelTex, color: 0xFFFFFF, transparent: true, opacity: 0.96,
+    roughness: 0.08, metalness: 0.25,
   });
   const channel = new THREE.Mesh(new THREE.PlaneGeometry(60, 4), channelMat);
   channel.rotation.x = -Math.PI / 2;
   channel.position.set(0, 0.07, 18);
   city.add(channel);
+  const curbMat = new THREE.MeshStandardMaterial({ color: 0xA89A78, roughness: 0.9 });
+  for (const [cx0, cx1] of [[-30, -3.4], [3.4, 30]]) {
+    for (const cz of [15.7, 20.3]) {
+      const curb = new THREE.Mesh(new THREE.BoxGeometry(cx1 - cx0, 0.18, 0.5), curbMat);
+      curb.position.set((cx0 + cx1) / 2, 0.09, cz);
+      curb.castShadow = true; curb.receiveShadow = true;
+      city.add(curb);
+    }
+  }
 
   // -- Sand, promenade, harbour apron, park lawns.
   const sandTex = paintSand(rng);
@@ -850,7 +938,7 @@ export function buildCity(scene, seed = 20261118) {
   const concTex = paintConcrete(rng);
   concTex.wrapS = THREE.RepeatWrapping;
   concTex.wrapT = THREE.RepeatWrapping;
-  concTex.repeat.set(3, 1);
+  concTex.repeat.set(6, 2);
   const apron = new THREE.Mesh(new THREE.PlaneGeometry(170, 54),
     new THREE.MeshStandardMaterial({ map: concTex, roughness: 0.95 }));
   apron.rotation.x = -Math.PI / 2;
@@ -1974,7 +2062,7 @@ export function buildCity(scene, seed = 20261118) {
       puff.position.x += puff.userData.speed * step;
       if (puff.position.x > 760) puff.position.x = -760;
     }
-    rippleTex.offset.set(clockT * 0.015, clockT * 0.02);
+    channelTex.offset.set(clockT * 0.03, 0); // slow flow along the channel
     fountWaterTex.offset.set(clockT * 0.02, clockT * 0.025);
     for (let i = 0; i < SPRAY_N; i++) {
       const [ang, ph, sp] = spraySeed[i];
