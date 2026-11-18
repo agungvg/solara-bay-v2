@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solara Bay — an open-world crime game</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e3a4d'/%3E%3Ccircle cx='16' cy='13' r='6' fill='%23ffd166'/%3E%3Cpath d='M4 24 q4 -4 8 0 t8 0 t8 0' stroke='%237fd4c1' stroke-width='2.5' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.min.js",
+  "three/addons/": "./vendor/addons/"
+} }
+</script>
+</head>
+<body>
+<main id="stage"></main>
+
+<!-- In-game overlay. Layout follows the HUD zone map (status top-left,
+     heat top-right, task centre-top, talk bottom-centre, drive bottom-right,
+     police list left edge while wanted) but every id and class here is new. -->
+<section id="sb-hud" class="sb-off" aria-hidden="true">
+  <div class="sb-corner sb-nw">
+    <p id="sb-cash" class="sb-cash">$200</p>
+    <p id="sb-time" class="sb-time">08:32 · Solara Bay</p>
+    <div class="sb-vitality" role="meter" aria-label="Health"><i id="sb-vitality-fill"></i><em id="sb-vitality-num">100 HP</em></div>
+  </div>
+  <div class="sb-corner sb-ne"><p id="sb-heat" class="sb-heat" aria-label="Wanted level">☆☆☆☆☆</p></div>
+  <aside id="sb-pd" class="sb-pd" hidden>
+    <h2>BAY PD — RESPONDING UNITS</h2>
+    <ul id="sb-pd-list"></ul>
+  </aside>
+  <div class="sb-taskbar">
+    <p id="sb-task" class="sb-task">Free roam — explore Solara Bay</p>
+    <p id="sb-task-dist" class="sb-task-dist"></p>
+    <p id="sb-clock" class="sb-clock" hidden></p>
+  </div>
+  <div class="sb-corner sb-sw">
+    <p id="sb-gun" class="sb-gun">PISTOL</p>
+    <p id="sb-bullets" class="sb-bullets">12 / 48</p>
+  </div>
+  <div class="sb-corner sb-se">
+    <div class="sb-drive">
+      <p class="sb-speed"><span id="sb-speed">0</span> <small>km/h</small></p>
+      <div class="sb-speedbar"><i id="sb-speedbar-fill"></i></div>
+      <p id="sb-gear" class="sb-gear">GEAR D</p>
+    </div>
+    <p class="sb-tuner"><strong id="sb-station">BAY FM 98.4</strong><span id="sb-track">Solara Sunset Drive</span></p>
+    <canvas id="sb-map" width="180" height="180" aria-label="Minimap"></canvas>
+  </div>
+  <p id="sb-hint" class="sb-hint" hidden></p>
+  <p id="sb-note" class="sb-note" hidden></p>
+  <p id="sb-chatter" class="sb-chatter" hidden></p>
+  <div id="sb-talk" class="sb-talk" hidden>
+    <span id="sb-talk-face" class="sb-talk-face">S</span>
+    <p><strong id="sb-talk-name"></strong><span id="sb-talk-line"></span></p>
+  </div>
+  <article id="sb-brief" class="sb-brief" hidden>
+    <h2 id="sb-brief-title"></h2>
+    <p id="sb-brief-text"></p>
+  </article>
+  <div id="sb-aim" class="sb-aim" hidden></div>
+  <div id="sb-hurt" class="sb-hurt"></div>
+  <div class="sb-vignette"></div>
+</section>
+
+<!-- Screens: one container, three states. -->
+<div id="sb-screens">
+  <section class="sb-screen sb-screen-title" data-screen="title">
+    <div class="sb-card">
+      <p class="sb-kicker">An open-world crime story</p>
+      <h1>SOLARA BAY</h1>
+      <p class="sb-tag">Six missions in a sunlit coastal city. The Bay PD is watching.</p>
+      <div class="sb-actions">
+        <button id="sb-start" type="button" class="sb-btn sb-btn-go" autofocus>Start</button>
+        <button id="sb-resume-save" type="button" class="sb-btn sb-btn-ghost" hidden>Continue saved game</button>
+      </div>
+      <details class="sb-help">
+        <summary>How to play</summary>
+        <ul>
+          <li><b>W A S D</b> move · <b>Mouse</b> look · <b>Shift</b> run</li>
+          <li><b>E</b> get in / out of a car · <b>F</b> punch · <b>Click</b> shoot</li>
+          <li><b>R</b> reload · <b>M</b> mute · <b>Esc</b> pause</li>
+        </ul>
+      </details>
+      <p class="sb-fine">An original game. Nothing in it copies any commercial game.</p>
+    </div>
+  </section>
+
+  <section class="sb-screen sb-screen-pause" data-screen="pause" hidden>
+    <div class="sb-card">
+      <h1>PAUSED</h1>
+      <div class="sb-actions">
+        <button id="sb-unpause" type="button" class="sb-btn sb-btn-go" autofocus>Resume</button>
+        <button id="sb-reload-save" type="button" class="sb-btn sb-btn-ghost">Restart from save</button>
+        <button id="sb-to-title" type="button" class="sb-btn sb-btn-ghost">Quit to title</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sb-screen sb-screen-over" data-screen="over" hidden>
+    <div class="sb-card">
+      <h1 id="sb-over-title">BUSTED</h1>
+      <p id="sb-over-text" class="sb-tag"></p>
+      <div class="sb-actions">
+        <button id="sb-again" type="button" class="sb-btn sb-btn-go" autofocus>Try again</button>
+        <button id="sb-over-title-btn" type="button" class="sb-btn sb-btn-ghost">Quit to title</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
