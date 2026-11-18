@@ -61,7 +61,10 @@
   "city.js": "4 foreground crates + 2 barrel clusters near the mission-5 docks area (x +/-16-20, z 116-120 and z 126/132; off the approach lines; crates have colliders, barrels do not).",
   "shots.js": "2-play: closer camera (8 m behind, relative to the car's ACTUAL position after advance — the car drifts ~16 m at 97 km/h; fixed coords stranded the camera 24 m back) + 2 AI cars staged (same lane ahead + oncoming). 3-chase: second police unit in the left lane + closer camera (8.5 m behind, relative to actual car pos — ~34 m drift at 62 km/h). 4-mission: Vipers grouped into a loose arc 9-15 m ahead, aim pose (right arm forward), closer camera (5.5 m back, behind-right, pistol side), one staged combat.shoot() (muzzle flash + tracer; 34 dmg cannot kill a 90 HP Viper, gang stays at 4; HUD ammo 11/48).",
   "capture": "capture720.mjs re-created at the repo root (durable — the /tmp copy was wiped by a VM restart). CDP driver, forces 1280x720 via Emulation.setDeviceMetricsOverride. All 5 shots re-captured 2026-11-18 ~22:05 WIB: 1-start 128520 B, 2-play 109944 B, 3-chase 126897 B, 4-mission 92971 B, 5-face 52685 B — all 1280x720 RGB (PIL), all JPGs under the 262144 B cap, zero page errors. 4-mission state: vipersAlive=4, ammo=11/48 (staged shot fired). 2-play/3-chase viewed: hero car LARGE in frame (black pickup, taillights + plate + bed read), 2 AI cars in 2-play, 2 police cars + 3 stars + responding-units panel in 3-chase. 4-mission viewed: hero large from behind, pistol + muzzle flash + tracer visible, 4 Vipers in arc, beacon + branded containers. 5-face viewed: eyes more open, brows thinner, fringe step breaks the straight hairline; still stylized low-poly (review-only shot).",
-  "honest_note": "100% as a number is NOT achievable — the judge is pairwise, so the score depends on the other entries too. The goal was to win as many pairwise games as possible."
+  "honest_note": "100% as a number is NOT achievable — the judge is pairwise, so the score depends on the other entries too. The goal was to win as many pairwise games as possible.",
+  "simulation_2026_11_18_22xx": "Lyso's conditional order ('kalau gta6 simulasi score bagus submite y'): bounded E2E 10/10 PASS (boot zero errors, 45 peds/7 arch, 12 AI + 14 parked, all local, mission 1 +$300 $200->$500, mission 2 starts) AND kit check 4 passed / 0 failed / 16 skipped on local commit 11181c4 (content-identical to remote dbf8793). BOTH 'good' by Lyso's definition. BUT SUBMIT BLOCKED — see submit_blocker below. NOT submitted.",
+  "submit_blocker": "NO sealed recording covers the v2 code. The only sealed gta6-01 recording (01a1ece6-7906-725a-a5ec-42d371bf0426) covers the V1 build (solara-bay repo, sessions 04:24-06:30 UTC, sealed 06:30:46 UTC). The v2 code was written 13:34-15:07 UTC, AFTER the seal. Measured line overlap v2-vs-v1: 793/5290 = 15.0% of v2 lines match v1 lines, vs min_authored threshold 0.30 (30%) in the competition requirements — even the generous upper bound is HALF the threshold, so thinking_reproduces would reject the entry. The open recording 01a1ecd7 has no local state (not in ~/.makefun/recordings.json), 0 documents, no recorder running — it cannot be sealed from here. No recorder is running now. The run record also needs flags (prompt/MCP/agent facts) — the parent's v1 submit flags are known (--prompt-file news-image-prompt.txt 'Jalankan bounty yang lain di make.fun', --mcp none, --harness muse --harness-version 1.3 --provider meta --model muse-spark-1.3 --effort default, --system-prompt system-prompt-withheld.txt) — but they are moot while the transcript gate fails. DO NOT submit with 01a1ece6: it would waste a daily quota entry (day left 2) and, under Force_Last (last submission counts), a rejected v2 could displace the kept v1 entry 01a1ed5a. Options for Lyso: (a) start a NEW recording and rebuild v2 under it (clean path, hours of work, deadline 24 Nov 22:00 WIB); (b) submit anyway knowing it will likely be rejected (NOT recommended); (c) leave the v1 entry standing.",
+  "final_commit": "local 11181c4ef159a052f4078e0693f7eb59fb9b9595, remote dbf8793a3957bc1522ec07e36d6f77b2cf8a3372 (verified via git ls-remote; screenshots/1-start.jpg + 4-mission.jpg sha256 identical local vs GitHub raw)"
  },
  "kit_check": {
   "command": "node cli/makefun.mjs check --repo /home/hatch/workspace/makefun/solara-bay-v2 --commit 7e9c963 (from gta6-01-kit/gta6-01-kit)",
@@ -77,9 +80,9 @@
   "at_submission": "5 checked by the site at submit (repo_public, repo_owner, repo_created_after_open, commit_in_repo, duplicate_snapshot); remote commit e0fed3995b76 is on public agungvg/solara-bay-v2, created 2026-11-18 after open, unique files",
   "result": "4 passed, 0 failed, 16 skipped"
  },
- "local_head": "7e9c9639ec9478afe96b41e612d62f7c8556fb45",
+ "local_head": "11181c4ef159a052f4078e0693f7eb59fb9b9595",
  "next": [
-  "Lyso's conditional submit order (2026-11-18 ~22:04 WIB): 'kalau gta6 simulasi score bagus submite y' — if the simulation is good, SUBMIT. 'Good' = bounded E2E 10/10 AND kit check 4 passed / 0 failed on the final pushed commit. Then submit gta6-01 with the eni keypair; record the submission ID + verify via the API owner view. Do NOT submit the old commit 8b3eb1dd — only the final judge-max version. Deadline Tue 24 Nov 2026 22:00 WIB; last submission before the deadline is final."
+  "SUBMIT BLOCKED (see judge_max.submit_blocker): no sealed recording covers the v2 code — the only sealed gta6-01 recording (01a1ece6) covers the v1 build; v2 lines match v1 at only 15.0% vs the 30% min_authored threshold, so thinking_reproduces would reject it. Lyso decides: (a) new recording + rebuild v2 under it (clean, hours of work, deadline 24 Nov 22:00 WIB), (b) submit anyway (NOT recommended — wastes quota and could displace the kept v1 entry under Force_Last), or (c) leave the v1 entry standing. Simulation itself is GOOD (E2E 10/10, kit 4/0) — the blocker is transcripts only."
  ],
  "polish": {
   "at": "2026-11-18 ~14:00-14:20 WIB, ordered by Lyso ('poles bikin HD dan jernih, effek juga')",
@@ -112,7 +115,7 @@
  "prize": "$1,666",
  "project": "Solara Bay v2",
  "remote_branch": "main",
- "remote_head": "e0fed3995b7620d53ad0d55fbaad0445c422db14",
+ "remote_head": "dbf8793a3957bc1522ec07e36d6f77b2cf8a3372",
  "repo": "https://github.com/agungvg/solara-bay-v2",
  "repo_about": {
   "created_at": "2026-11-18T12:34:56Z",
